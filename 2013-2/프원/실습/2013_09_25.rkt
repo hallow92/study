@@ -1,0 +1,31 @@
+#lang racket
+
+(define (iseven n) (= (modulo n 2) 0)) ; iseven: int -> bool
+(define (even-list items) ; even-list: int list -> bool list
+  (if (null? items)
+      '()
+      (cons (iseven (car items)) (even-list (cdr items)))
+      )
+  )
+
+(define (my-map func items)
+  (if (null? items)
+      '()
+      (cons (func (car items)) (my-map func (cdr items)))
+      )
+  )
+
+(define (fold lst f c) ; fold의 정의
+  (if (null? lst) c
+      (f (car lst) (fold (cdr lst) f c))
+      )
+  )
+
+(define (my_or a b)
+  (or a b)
+  )
+
+(define (has-even items)
+      (fold (even-list items) my_or #f)
+  )
+

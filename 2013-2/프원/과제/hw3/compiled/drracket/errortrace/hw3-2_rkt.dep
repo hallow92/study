@@ -1,0 +1,1 @@
+("5.3.6" ("2a0dff45ef09359bec918a8a6eb09b0dcea1838a" . "60da06f0f40b77637444e78cee3ab744c90e367f") #"C:\\Users\\gari\\Desktop\\study\\\355\224\204\354\233\220\\\352\263\274\354\240\234\\hw3\\hw3-2-library.rkt" (collects #"racket" #"main.rkt") (collects #"racket" #"lang" #"reader.rkt"))

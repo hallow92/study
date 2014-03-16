@@ -1,0 +1,274 @@
+#lang racket
+
+
+;;; CAUTION: read VERY CAREFULLY hw5-1-grade.rkt before doing your HW.
+;;; Instructions how to write submission (and grade it) is written in
+;;; hw5-1-grade.rkt.
+
+;;; If these statements are omitted, your submission will be graded 0.
+;;; You can add whatever function you would like to make public.
+;;; For example, if you want a function foo in hw5-2, provide it.
+
+(provide black)
+(provide white)
+
+(provide glue-array-from-tree)
+(provide glue-array-from-array)
+(provide rotate-array)
+(provide neighbor-array)
+(provide pprint-array)
+(provide is-array?)
+
+(provide glue-tree-from-tree)
+(provide glue-tree-from-array)
+(provide rotate-tree)
+(provide neighbor-tree)
+(provide pprint-tree)
+(provide is-tree?)
+
+(provide array-to-tree)
+(provide tree-to-array)
+
+(provide glue)
+(provide rotate)
+(provide neighbor)
+(provide pprint)
+
+(provide neighbor-by-pos)
+;;; primitive tile
+; A black tile is 'B and a whit etile is 'W.
+
+(define black ; black: form
+  'B)
+(define white ; white: form
+  'W)
+
+
+;;; complex tile
+;
+; An array tile looks like:
+; (cons 'array (list row_1 row_2 ... row_n)),
+; for each row_i = (list cell_i1 ... cell_in).
+;
+; Examples:
+; 1.
+; (cons 'array (list (list 'B 'B) (list 'W 'W)))
+; BB
+; WW
+;
+; 2.
+; (cons 'array (list (list 'B 'B 'B 'B) (list 'B 'B 'B 'B) (list 'W 'W 'B 'B) (list 'W 'W 'B 'B)))
+; BBBB
+; BBBB
+; WWBB
+; WWBB
+;
+;
+; An tree tile looks like:
+; (cons 'tree (list subtree_nw subtree_ne subtree_se subtree_sw)).
+;
+; Examples:
+; 1.
+; (cons 'tree (list 'B 'B 'W 'B))
+; BB
+; BW
+;
+; 2.
+; (cons 'tree (list (list 'B 'B 'B 'W) (list 'B 'B 'W 'B) (list 'B 'W 'B 'B) (list 'W 'B 'B 'B)))
+; BBBB
+; WBBW
+; WBBW
+; BBBB
+;
+; See hw5-1-grade.rkt for more details on grading array and tree representation.
+
+(define (glue-array-from-tree nw ne se sw) ; glue-array-from-tree: form * form * form * form -> form
+  (if (or (equal? nw black) (equal? nw white)) 
+      (cons 'array (list (list nw ne) (list sw se)))
+      (glue-array-from-array (tree-to-array nw) (tree-to-array ne) (tree-to-array se) (tree-to-array sw))
+      )
+  )
+
+(define (glue-array-from-array nw ne se sw) ; glue-array-from-array: form * form * form * form -> form
+  (if (or (equal? nw black) (equal? nw white)) 
+      (cons 'array (list (list nw ne) (list sw se)))
+      (cons 'array 
+            (append 
+             (map (lambda (e1 e2) (if (and (equal? e1 'array) (equal? e2 'array)) 'DUMMY (append e1 e2))) (remove 'array nw) (remove 'array ne))
+             (map (lambda (e1 e2) (if (and (equal? e1 'array) (equal? e2 'array)) 'DUMMY (append e1 e2))) (remove 'array sw) (remove 'array se))))  
+      )
+  )
+
+(define (glue-tree-from-tree nw ne se sw) ; glue-tree-from-tree: form * form * form * form -> form
+  (if (or (equal? nw black) (equal? nw white))
+      (cons 'tree (list nw ne se sw))
+      (cons 'tree (list (remove 'tree nw) (remove 'tree ne) (remove 'tree se) (remove 'tree sw)))))
+
+(define (glue-tree-from-array nw ne se sw) ; glue-tree-from-array: form * form * form * form -> form
+  (if (or (equal? nw black) (equal? nw white))
+      (cons 'tree (list nw ne se sw))
+      (glue-tree-from-tree (array-to-tree nw) (array-to-tree ne) (array-to-tree se) (array-to-tree sw))
+      )
+  )
+
+(define (rotate-array f) ; rotate-array: form -> form
+  (let ((tree (array-to-tree f)))
+    (tree-to-array (rotate-tree tree))
+    ))
+
+(define (neighbor-array location f) ; neighbor-array: location * form -> int
+  (let ((array (remove 'array f)))
+  (neighbor-by-pos (find-pos location (length array)) array))
+  )
+
+(define (neighbor-by-pos pos array)
+  (foldl (lambda (color cnt)
+           (if (equal? color black)
+               (+ 1 cnt)
+               cnt))
+         0
+         (append (get-pos-color (pos+ pos (cons -1 -1)) array)
+                 (get-pos-color (pos+ pos (cons 0 -1)) array)
+                 (get-pos-color (pos+ pos (cons 1 -1)) array)
+                 (get-pos-color (pos+ pos (cons -1 0)) array)
+                 (get-pos-color (pos+ pos (cons 1 0)) array)
+                 (get-pos-color (pos+ pos (cons -1 1)) array)
+                 (get-pos-color (pos+ pos (cons 0 1)) array)
+                 (get-pos-color (pos+ pos (cons 1 1)) array)))
+  )
+
+(define (find-pos location length)
+  (if (null? location)
+      (cons 0 0)
+      (cond 
+        ((equal? 0 (car location)) (cons (car (find-pos (cdr location) (/ length 2))) (cdr (find-pos (cdr location) (/ length 2)))))
+        ((equal? 1 (car location)) (cons (+ (car (find-pos (cdr location) (/ length 2))) (/ length 2)) (cdr (find-pos (cdr location) (/ length 2)))))
+        ((equal? 2 (car location)) (cons (+ (car (find-pos (cdr location) (/ length 2))) (/ length 2)) (+ (cdr (find-pos (cdr location) (/ length 2))) (/ length 2))))
+        ((equal? 3 (car location)) (cons (car (find-pos (cdr location) (/ length 2))) (+ (cdr (find-pos (cdr location) (/ length 2))) (/ length 2))))
+        )
+      )
+  )
+
+(define (pos+ pos1 pos2)
+  (cons (+ (car pos1) (car pos2)) (+ (cdr pos1) (cdr pos2)))
+  )
+
+(define (get-pos-color pos array)
+  (if (or (negative? (car pos)) (negative? (cdr pos)) (< (sub1 (length array)) (car pos)) (< (sub1 (length array)) (cdr pos)))
+      null
+      (list (list-ref (list-ref array (cdr pos)) (car pos))))
+  )
+  
+
+; In the document, it is said to have type form -> void, but implement
+; as form -> string.
+; Read hw5-1-grade.rkt for formatting.
+(define (pprint-array f) ; pprint-array: form -> string
+  (let ((array (remove 'array f)))
+    (if (equal? array null)
+        ""
+        (string-append (array-to-string (car array)) "\n" (pprint-array (cdr array)))
+        )
+    ))
+
+(define (array-to-string array)
+  (cond
+    ((equal? array null) "")
+    ((equal? (car array) black) (string-append "B" (array-to-string (cdr array))))
+    ((equal? (car array) white) (string-append "W" (array-to-string (cdr array))))
+    )
+  )
+
+(define (is-array? f) ; is-array?: form -> bool
+  (cond [(equal? 'B f) #t]
+        [(equal? 'W f) #t]
+        [(equal? 'array (car f)) #t]
+        [else #f]))
+
+
+;;; implementation with tree
+
+(define (rotate-tree f) ; rotate-tree: form -> form
+  (let ((tree (remove 'tree f)))
+    (if (or (equal? (car tree) black) (equal? (car tree) white))
+        (list (list-ref tree 3) (list-ref tree 0) (list-ref tree 1) (list-ref tree 2))
+        (glue-tree-from-tree (rotate-tree (list-ref tree 3)) (rotate-tree (list-ref tree 0)) (rotate-tree (list-ref tree 1)) (rotate-tree (list-ref tree 2)))
+        )
+    )
+  )
+
+(define (neighbor-tree loc f) ; neighbor-tree: location * form -> int
+  (neighbor-array loc (tree-to-array f)))
+
+; In the document, it is said to have type form -> void, but implement
+; as form -> string.
+(define (pprint-tree f) ; pprint-tree: form -> string
+  (pprint-array (tree-to-array f)))
+
+(define (is-tree? f) ; is-tree?: form -> bool
+  (cond [(equal? 'B f) #t]
+        [(equal? 'W f) #t]
+        [(equal? 'tree (car f)) #t]
+        [else #f]))
+
+
+;;; conversions 
+
+(define (array-to-tree f) ; array-to-tree: form -> form
+  (let ((array (remove 'array f)))
+    (if (equal? (length array) 2)
+        (append (car array) (reverse (cadr array)))
+        (glue-tree-from-tree
+         (array-to-tree (map (lambda (e) (list-head e (/ (length e) 2))) (list-head array (/ (length array) 2))))
+         (array-to-tree (map (lambda (e) (list-tail e (/ (length e) 2))) (list-head array (/ (length array) 2))))           
+         (array-to-tree (map (lambda (e) (list-tail e (/ (length e) 2))) (list-tail array (/ (length array) 2))))
+         (array-to-tree (map (lambda (e) (list-head e (/ (length e) 2))) (list-tail array (/ (length array) 2))))       
+         )
+        )
+    )
+  )
+
+(define (tree-to-array f) ; tree-to-array: form -> form
+  (let ((tree (remove 'tree f)))
+    (if (or (equal? (car tree) black) (equal? (car tree) white))
+        (list 'array (list-head tree 2) (reverse (list-tail tree 2)))
+        (glue-array-from-array
+         (tree-to-array (list-ref tree 0))
+         (tree-to-array (list-ref tree 1))
+         (tree-to-array (list-ref tree 2))
+         (tree-to-array (list-ref tree 3))
+         )
+        )
+    ))
+
+(define (list-head list idx)
+  (take list idx))
+;;; interfaces
+
+(define (glue nw ne se sw) ; glue: form * form * form * form -> form
+  (glue-array-from-array nw ne se sw))
+
+(define (rotate f) ; rotate: form -> form
+  (if (is-array? f)
+      (rotate-array f)
+      (rotate-tree f)))
+
+(define (neighbor loc f) ; neighbor: location * form -> int
+  (if (is-array? f)
+      (neighbor-array loc f)
+      (neighbor-tree loc f)))
+
+; In the document, it is said to have type form -> void, but implement
+; as form -> string.
+(define (pprint f) ; pprint: form -> string
+  (if (is-array? f)
+      (pprint-array f)
+      (pprint-tree f)))
+
+(define basic (glue black black black white))
+(define (turn pattern i)
+  (if (<= i 0) 
+      pattern
+      (turn (rotate pattern) (- i 1))))
+(define compound1
+  (glue basic (turn basic 1) (turn basic 2) (turn basic 3)))
